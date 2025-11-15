@@ -1,0 +1,1189 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Clock, Users, MapPin, Volume2, VolumeX, Volume1, Monitor, Tv, Projector, Phone, Lock, Unlock, Calendar, ChevronLeft, ChevronRight, X, Bell } from 'lucide-react';
+
+// Hardcoded room data with simulated sessions and reservations
+const INITIAL_ROOMS = [
+  // Hunt Library
+  { id: 'HUNT-A10', building: 'Hunt Library', name: 'Hunt A10', capacity: 4, status: 'inUse', inUseUntil: new Date(Date.now() + 45 * 60000).toISOString(), noiseLevel: 'quiet', amenities: ['whiteboard', 'monitor'], sessionInfo: { isPublic: true, subject: '15-112', notes: 'Working on homework 5, need help with recursion!' }, reservations: [] },
+  { id: 'HUNT-B12', building: 'Hunt Library', name: 'Hunt B12', capacity: 6, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard', 'monitor', 'tv'], reservations: [
+    { id: '1', startTime: new Date(Date.now() + 2 * 60 * 60000).toISOString(), endTime: new Date(Date.now() + 4 * 60 * 60000).toISOString(), isPublic: true, subject: '15-213', notes: 'Systems study group', type: 'reservation' }
+  ] },
+  { id: 'HUNT-C05', building: 'Hunt Library', name: 'Hunt C05', capacity: 8, status: 'inUse', inUseUntil: new Date(Date.now() + 25 * 60000).toISOString(), noiseLevel: 'quiet', amenities: ['whiteboard', 'projector'], sessionInfo: { isPublic: true, subject: '21-241', notes: 'Linear algebra exam prep' }, reservations: [] },
+ 
+  // Tepper Building
+  { id: 'TEPPER-305', building: 'Tepper Building', name: 'Tepper 305', capacity: 6, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard', 'monitor', 'conference_phone'], reservations: [
+    { id: '2', startTime: new Date(Date.now() + 1 * 60 * 60000).toISOString(), endTime: new Date(Date.now() + 2 * 60 * 60000).toISOString(), isPublic: false, subject: 'Team Meeting', notes: '', type: 'club' }
+  ] },
+  { id: 'TEPPER-310', building: 'Tepper Building', name: 'Tepper 310', capacity: 4, status: 'inUse', inUseUntil: new Date(Date.now() + 35 * 60000).toISOString(), noiseLevel: 'quiet', amenities: ['whiteboard'], sessionInfo: { isPublic: false, subject: '', notes: '' }, reservations: [] },
+  { id: 'TEPPER-401', building: 'Tepper Building', name: 'Tepper 401', capacity: 8, status: 'open', inUseUntil: null, noiseLevel: 'collaborative', amenities: ['whiteboard', 'monitor', 'tv', 'conference_phone'], reservations: [] },
+ 
+  // ANSYS Hall
+  { id: 'ANSYS-101', building: 'ANSYS Hall', name: 'ANSYS 101', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['monitor'], reservations: [] },
+  { id: 'ANSYS-205', building: 'ANSYS Hall', name: 'ANSYS 205', capacity: 6, status: 'inUse', inUseUntil: new Date(Date.now() + 50 * 60000).toISOString(), noiseLevel: 'moderate', amenities: ['whiteboard', 'projector'], sessionInfo: { isPublic: true, subject: '18-100', notes: 'ECE project work' }, reservations: [] },
+ 
+  // Baker Hall
+  { id: 'BAKER-150', building: 'Baker Hall', name: 'Baker 150', capacity: 5, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['whiteboard'], reservations: [] },
+  { id: 'BAKER-232', building: 'Baker Hall', name: 'Baker 232', capacity: 4, status: 'inUse', inUseUntil: new Date(Date.now() + 10 * 60000).toISOString(), noiseLevel: 'quiet', amenities: ['monitor'], sessionInfo: { isPublic: false, subject: '', notes: '' }, reservations: [] },
+ 
+  // Cohon University Center
+  { id: 'COHON-2RD', building: 'Cohon University Center', name: 'Cohon 2nd Floor Room D', capacity: 8, status: 'inUse', inUseUntil: new Date(Date.now() + 55 * 60000).toISOString(), noiseLevel: 'collaborative', amenities: ['whiteboard', 'monitor', 'tv'], sessionInfo: { isPublic: true, subject: '70-332', notes: 'Marketing group project - final presentation prep' }, reservations: [] },
+  { id: 'COHON-3RA', building: 'Cohon University Center', name: 'Cohon 3rd Floor Room A', capacity: 6, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard'], reservations: [] },
+ 
+  // Doherty Hall
+  { id: 'DOHERTY-1112', building: 'Doherty Hall', name: 'Doherty 1112', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['whiteboard', 'monitor'], reservations: [
+    { id: '3', startTime: new Date(Date.now() + 3 * 60 * 60000).toISOString(), endTime: new Date(Date.now() + 4.5 * 60 * 60000).toISOString(), isPublic: true, subject: 'Chemistry Study Session', notes: '', type: 'class' }
+  ] },
+  { id: 'DOHERTY-2105', building: 'Doherty Hall', name: 'Doherty 2105', capacity: 6, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard', 'projector'], reservations: [] },
+ 
+  // Hamburg Hall
+  { id: 'HAMBURG-1001', building: 'Hamburg Hall', name: 'Hamburg 1001', capacity: 5, status: 'inUse', inUseUntil: new Date(Date.now() + 40 * 60000).toISOString(), noiseLevel: 'moderate', amenities: ['whiteboard', 'monitor'], sessionInfo: { isPublic: true, subject: '73-230', notes: 'Microeconomics problem sets' }, reservations: [] },
+  { id: 'HAMBURG-2020', building: 'Hamburg Hall', name: 'Hamburg 2020', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['whiteboard'], reservations: [] },
+ 
+  // Hamerschlag Hall
+  { id: 'HAMER-B201', building: 'Hamerschlag Hall', name: 'Hamerschlag B201', capacity: 6, status: 'open', inUseUntil: null, noiseLevel: 'collaborative', amenities: ['whiteboard', 'monitor', 'tv'], reservations: [] },
+  { id: 'HAMER-1320', building: 'Hamerschlag Hall', name: 'Hamerschlag 1320', capacity: 4, status: 'inUse', inUseUntil: new Date(Date.now() + 20 * 60000).toISOString(), noiseLevel: 'quiet', amenities: ['monitor'], sessionInfo: { isPublic: true, subject: '24-101', notes: 'MechE homework' }, reservations: [] },
+ 
+  // Margaret Morrison Carnegie Hall
+  { id: 'MMCH-203', building: 'Margaret Morrison Carnegie Hall', name: 'MMCH 203', capacity: 5, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard', 'projector'], reservations: [] },
+  { id: 'MMCH-315', building: 'Margaret Morrison Carnegie Hall', name: 'MMCH 315', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['whiteboard'], reservations: [] },
+ 
+  // Newell-Simon Hall
+  { id: 'NSH-3001', building: 'Newell-Simon Hall', name: 'NSH 3001', capacity: 6, status: 'inUse', inUseUntil: new Date(Date.now() + 15 * 60000).toISOString(), noiseLevel: 'moderate', amenities: ['whiteboard', 'monitor', 'projector'], sessionInfo: { isPublic: true, subject: '15-251', notes: 'Great Ideas study group - graphs and complexity' }, reservations: [] },
+  { id: 'NSH-4220', building: 'Newell-Simon Hall', name: 'NSH 4220', capacity: 8, status: 'open', inUseUntil: null, noiseLevel: 'collaborative', amenities: ['whiteboard', 'monitor', 'tv', 'conference_phone'], reservations: [
+    { id: '4', startTime: new Date(Date.now() + 5 * 60 * 60000).toISOString(), endTime: new Date(Date.now() + 7 * 60 * 60000).toISOString(), isPublic: true, subject: 'CS Club Meeting', notes: 'Hackathon planning', type: 'club' }
+  ] },
+ 
+  // Posner Hall
+  { id: 'POSNER-152', building: 'Posner Hall', name: 'Posner 152', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['whiteboard', 'monitor'], reservations: [] },
+  { id: 'POSNER-260', building: 'Posner Hall', name: 'Posner 260', capacity: 6, status: 'inUse', inUseUntil: new Date(Date.now() + 30 * 60000).toISOString(), noiseLevel: 'moderate', amenities: ['whiteboard', 'projector'], sessionInfo: { isPublic: false, subject: '', notes: '' }, reservations: [] },
+ 
+  // Porter Hall
+  { id: 'PORTER-100', building: 'Porter Hall', name: 'Porter 100', capacity: 5, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['whiteboard'], reservations: [] },
+  { id: 'PORTER-225', building: 'Porter Hall', name: 'Porter 225', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['monitor'], reservations: [] },
+ 
+  // Purnell Center for the Arts
+  { id: 'PURNELL-226', building: 'Purnell Center for the Arts', name: 'Purnell 226', capacity: 6, status: 'inUse', inUseUntil: new Date(Date.now() + 48 * 60000).toISOString(), noiseLevel: 'collaborative', amenities: ['whiteboard', 'projector'], sessionInfo: { isPublic: true, subject: 'Drama Club', notes: 'Script reading and rehearsal' }, reservations: [] },
+  { id: 'PURNELL-340', building: 'Purnell Center for the Arts', name: 'Purnell 340', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard'], reservations: [] },
+ 
+  // Roberts Engineering Hall
+  { id: 'ROBERTS-105', building: 'Roberts Engineering Hall', name: 'Roberts 105', capacity: 5, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard', 'monitor'], reservations: [] },
+  { id: 'ROBERTS-317', building: 'Roberts Engineering Hall', name: 'Roberts 317', capacity: 6, status: 'inUse', inUseUntil: new Date(Date.now() + 38 * 60000).toISOString(), noiseLevel: 'collaborative', amenities: ['whiteboard', 'monitor', 'tv'], sessionInfo: { isPublic: true, subject: 'Robotics Club', notes: 'Building competition robot' }, reservations: [] },
+ 
+  // Scaife Hall
+  { id: 'SCAIFE-125', building: 'Scaife Hall', name: 'Scaife 125', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['whiteboard'], reservations: [] },
+  { id: 'SCAIFE-219', building: 'Scaife Hall', name: 'Scaife 219', capacity: 5, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['monitor', 'projector'], reservations: [] },
+ 
+  // Smith Hall
+  { id: 'SMITH-304', building: 'Smith Hall', name: 'Smith 304', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['whiteboard', 'monitor'], reservations: [] },
+  { id: 'SMITH-415', building: 'Smith Hall', name: 'Smith 415', capacity: 6, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard', 'projector'], reservations: [] },
+ 
+  // Wean Hall
+  { id: 'WEAN-4623', building: 'Wean Hall', name: 'Wean 4623', capacity: 6, status: 'inUse', inUseUntil: new Date(Date.now() + 42 * 60000).toISOString(), noiseLevel: 'moderate', amenities: ['whiteboard', 'monitor'], sessionInfo: { isPublic: true, subject: '15-410', notes: 'OS project - kernel debugging' }, reservations: [] },
+  { id: 'WEAN-5409', building: 'Wean Hall', name: 'Wean 5409', capacity: 8, status: 'open', inUseUntil: null, noiseLevel: 'collaborative', amenities: ['whiteboard', 'monitor', 'tv', 'projector'], reservations: [] },
+  { id: 'WEAN-7500', building: 'Wean Hall', name: 'Wean 7500', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['monitor'], reservations: [] },
+ 
+  // College of Fine Arts
+  { id: 'CFA-101', building: 'College of Fine Arts', name: 'CFA 101', capacity: 5, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard', 'projector'], reservations: [] },
+  { id: 'CFA-214', building: 'College of Fine Arts', name: 'CFA 214', capacity: 4, status: 'inUse', inUseUntil: new Date(Date.now() + 28 * 60000).toISOString(), noiseLevel: 'quiet', amenities: ['whiteboard'], sessionInfo: { isPublic: true, subject: '79-104', notes: 'History essay writing' }, reservations: [] },
+ 
+  // Mellon Institute
+  { id: 'MELLON-406', building: 'Mellon Institute', name: 'Mellon 406', capacity: 6, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard', 'monitor', 'projector'], reservations: [] },
+  { id: 'MELLON-520', building: 'Mellon Institute', name: 'Mellon 520', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['whiteboard'], reservations: [] },
+ 
+  // Warner Hall
+  { id: 'WARNER-201', building: 'Warner Hall', name: 'Warner 201', capacity: 5, status: 'open', inUseUntil: null, noiseLevel: 'moderate', amenities: ['whiteboard', 'monitor'], reservations: [] },
+  { id: 'WARNER-315', building: 'Warner Hall', name: 'Warner 315', capacity: 4, status: 'open', inUseUntil: null, noiseLevel: 'quiet', amenities: ['monitor'], reservations: [] },
+];
+
+export default function App() {
+  const [rooms, setRooms] = useState([]);
+  const [selectedBuilding, setSelectedBuilding] = useState('');
+  const [scannedRoomId, setScannedRoomId] = useState(null);
+  const [filters, setFilters] = useState({
+    minCapacity: 0,
+    noiseLevel: 'all',
+    amenities: [],
+    showPublicOnly: false,
+    availability: 'all'
+  });
+  const [checkInModal, setCheckInModal] = useState(null);
+  const [checkInForm, setCheckInForm] = useState({
+    isPublic: false,
+    subject: '',
+    notes: ''
+  });
+  const [reservationModal, setReservationModal] = useState(null);
+  const [calendarView, setCalendarView] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [timeSlotView, setTimeSlotView] = useState(false);
+  const [reservationForm, setReservationForm] = useState({
+    startTime: '',
+    endTime: '',
+    isPublic: false,
+    subject: '',
+    notes: '',
+    type: 'reservation'
+  });
+  const [notifications, setNotifications] = useState([]);
+  const roomRefs = useRef({});
+
+  // Initialize rooms on mount
+  useEffect(() => {
+    const storedData = sessionStorage.getItem('cmu-study-rooms');
+    let initialRooms = INITIAL_ROOMS;
+   
+    if (storedData) {
+      try {
+        const parsed = JSON.parse(storedData);
+        if (parsed.length === INITIAL_ROOMS.length) {
+          initialRooms = parsed;
+        }
+      } catch (e) {
+        console.error('Failed to parse stored rooms');
+      }
+    }
+
+    const now = new Date();
+    const cleanedRooms = initialRooms.map(room => {
+      if (room.status === 'inUse' && room.inUseUntil) {
+        const untilTime = new Date(room.inUseUntil);
+        if (untilTime < now) {
+          return { ...room, status: 'open', inUseUntil: null };
+        }
+      }
+      return room;
+    });
+
+    setRooms(cleanedRooms);
+    sessionStorage.setItem('cmu-study-rooms', JSON.stringify(cleanedRooms));
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+      const foundRoom = cleanedRooms.find(r => r.id === roomParam);
+      if (foundRoom) {
+        setScannedRoomId(roomParam);
+        setSelectedBuilding(foundRoom.building);
+      }
+    } else if (cleanedRooms.length > 0) {
+      const buildings = [...new Set(cleanedRooms.map(r => r.building))];
+      if (buildings.length > 0) {
+        setSelectedBuilding(buildings.sort()[0]);
+      }
+    }
+  }, []);
+
+  // Check for 15-minute warnings
+  useEffect(() => {
+    const checkWarnings = () => {
+      const now = new Date();
+      const newNotifications = [];
+     
+      rooms.forEach(room => {
+        if (room.status === 'inUse' && room.inUseUntil) {
+          const endTime = new Date(room.inUseUntil);
+          const timeLeft = endTime - now;
+          const minutesLeft = Math.floor(timeLeft / 60000);
+         
+          if (minutesLeft === 15) {
+            const notifId = `${room.id}-15min`;
+            if (!notifications.find(n => n.id === notifId)) {
+              newNotifications.push({
+                id: notifId,
+                roomId: room.id,
+                roomName: room.name,
+                message: `15 minutes left in ${room.name}. Extend your reservation or the room will be available soon.`,
+                timestamp: now.toISOString()
+              });
+            }
+          }
+        }
+      });
+     
+      if (newNotifications.length > 0) {
+        setNotifications(prev => [...prev, ...newNotifications]);
+      }
+    };
+   
+    const interval = setInterval(checkWarnings, 60000);
+    checkWarnings();
+   
+    return () => clearInterval(interval);
+  }, [rooms, notifications]);
+
+  useEffect(() => {
+    if (scannedRoomId && roomRefs.current[scannedRoomId]) {
+      setTimeout(() => {
+        roomRefs.current[scannedRoomId].scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 100);
+    }
+  }, [scannedRoomId, selectedBuilding]);
+
+  const saveRooms = (updatedRooms) => {
+    setRooms(updatedRooms);
+    sessionStorage.setItem('cmu-study-rooms', JSON.stringify(updatedRooms));
+  };
+
+  const handleUseRoom = (roomId) => {
+    setCheckInModal(roomId);
+    setCheckInForm({ isPublic: false, subject: '', notes: '' });
+  };
+
+  const confirmCheckIn = () => {
+    if (!checkInModal) return;
+   
+    const now = new Date();
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+   
+    const updatedRooms = rooms.map(room => {
+      if (room.id === checkInModal) {
+        return {
+          ...room,
+          status: 'inUse',
+          inUseUntil: oneHourLater.toISOString(),
+          sessionInfo: {
+            isPublic: checkInForm.isPublic,
+            subject: checkInForm.subject,
+            notes: checkInForm.notes
+          }
+        };
+      }
+      return room;
+    });
+   
+    saveRooms(updatedRooms);
+    setCheckInModal(null);
+  };
+
+  const handleReleaseRoom = (roomId) => {
+    const updatedRooms = rooms.map(room => {
+      if (room.id === roomId) {
+        return {
+          ...room,
+          status: 'open',
+          inUseUntil: null,
+          sessionInfo: null
+        };
+      }
+      return room;
+    });
+   
+    saveRooms(updatedRooms);
+  };
+
+  const handleQRSimulation = (roomId) => {
+    window.location.href = `?room=${roomId}`;
+  };
+
+  const handleReset = () => {
+    if (confirm('Reset all rooms to default state? This will clear all reservations.')) {
+      sessionStorage.removeItem('cmu-study-rooms');
+      window.location.reload();
+    }
+  };
+
+  const openReservationModal = (roomId) => {
+    setReservationModal(roomId);
+    setCalendarView(new Date());
+    setSelectedDate(null);
+    setTimeSlotView(false);
+    setReservationForm({
+      startTime: '',
+      endTime: '',
+      isPublic: false,
+      subject: '',
+      notes: '',
+      type: 'reservation'
+    });
+  };
+
+  const selectDateForReservation = (date) => {
+    setSelectedDate(date);
+    setTimeSlotView(true);
+  };
+
+  const confirmReservation = () => {
+    if (!reservationModal || !selectedDate || !reservationForm.startTime || !reservationForm.endTime) return;
+   
+    const startDateTime = new Date(selectedDate);
+    const [startHour, startMin] = reservationForm.startTime.split(':');
+    startDateTime.setHours(parseInt(startHour), parseInt(startMin), 0);
+   
+    const endDateTime = new Date(selectedDate);
+    const [endHour, endMin] = reservationForm.endTime.split(':');
+    endDateTime.setHours(parseInt(endHour), parseInt(endMin), 0);
+   
+    const updatedRooms = rooms.map(room => {
+      if (room.id === reservationModal) {
+        const reservations = room.reservations || [];
+        return {
+          ...room,
+          reservations: [...reservations, {
+            id: Date.now().toString(),
+            startTime: startDateTime.toISOString(),
+            endTime: endDateTime.toISOString(),
+            isPublic: reservationForm.isPublic,
+            subject: reservationForm.subject,
+            notes: reservationForm.notes,
+            type: reservationForm.type
+          }]
+        };
+      }
+      return room;
+    });
+   
+    saveRooms(updatedRooms);
+    setReservationModal(null);
+  };
+
+  const extendReservation = (roomId) => {
+    const now = new Date();
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+   
+    const updatedRooms = rooms.map(room => {
+      if (room.id === roomId) {
+        return {
+          ...room,
+          inUseUntil: oneHourLater.toISOString()
+        };
+      }
+      return room;
+    });
+   
+    saveRooms(updatedRooms);
+    setNotifications(prev => prev.filter(n => n.roomId !== roomId));
+  };
+
+  const dismissNotification = (notifId) => {
+    setNotifications(prev => prev.filter(n => n.id !== notifId));
+  };
+
+  const formatTime = (isoString) => {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getNoiseLevelIcon = (level) => {
+    switch(level) {
+      case 'quiet': return <VolumeX size={16} className="text-blue-600" />;
+      case 'moderate': return <Volume1 size={16} className="text-yellow-600" />;
+      case 'collaborative': return <Volume2 size={16} className="text-orange-600" />;
+      default: return null;
+    }
+  };
+
+  const getNoiseLevelLabel = (level) => {
+    switch(level) {
+      case 'quiet': return { text: 'Quiet', color: 'bg-blue-100 text-blue-800' };
+      case 'moderate': return { text: 'Moderate', color: 'bg-yellow-100 text-yellow-800' };
+      case 'collaborative': return { text: 'Collaborative', color: 'bg-orange-100 text-orange-800' };
+      default: return { text: level, color: 'bg-gray-100 text-gray-800' };
+    }
+  };
+
+  const getAmenityIcon = (amenity) => {
+    switch(amenity) {
+      case 'whiteboard': return '📝';
+      case 'monitor': return <Monitor size={16} />;
+      case 'tv': return <Tv size={16} />;
+      case 'projector': return <Projector size={16} />;
+      case 'conference_phone': return <Phone size={16} />;
+      default: return amenity;
+    }
+  };
+
+  const getAmenityLabel = (amenity) => {
+    switch(amenity) {
+      case 'whiteboard': return 'Whiteboard';
+      case 'monitor': return 'Monitor';
+      case 'tv': return 'TV';
+      case 'projector': return 'Projector';
+      case 'conference_phone': return 'Conference Phone';
+      default: return amenity;
+    }
+  };
+
+  const getRoomAvailabilityStatus = (room) => {
+    const now = new Date();
+   
+    if (room.status === 'inUse' && room.inUseUntil) {
+      const endTime = new Date(room.inUseUntil);
+      const timeLeft = endTime - now;
+      const minutesLeft = Math.floor(timeLeft / 60000);
+     
+      if (minutesLeft <= 15) return 'opening_15min';
+      if (minutesLeft <= 30) return 'opening_30min';
+      return 'in_use';
+    }
+   
+    if (room.reservations && room.reservations.length > 0) {
+      const upcomingReservation = room.reservations.find(res => {
+        const resStart = new Date(res.startTime);
+        const resEnd = new Date(res.endTime);
+        return now >= resStart && now <= resEnd;
+      });
+     
+      if (upcomingReservation) return 'reserved';
+     
+      const nextReservation = room.reservations
+        .filter(res => new Date(res.startTime) > now)
+        .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))[0];
+     
+      if (nextReservation) {
+        const timeUntil = new Date(nextReservation.startTime) - now;
+        const minutesUntil = Math.floor(timeUntil / 60000);
+       
+        if (minutesUntil <= 15) return 'opening_15min';
+        if (minutesUntil <= 30) return 'opening_30min';
+      }
+    }
+   
+    return 'open_now';
+  };
+
+  const getDayReservations = (room, date) => {
+    if (!room.reservations) return [];
+   
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+   
+    return room.reservations.filter(res => {
+      const resStart = new Date(res.startTime);
+      return resStart >= dayStart && resStart <= dayEnd;
+    }).sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+  };
+
+  const generateCalendarDays = () => {
+    const year = calendarView.getFullYear();
+    const month = calendarView.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+   
+    const days = [];
+    const currentDate = new Date(startDate);
+   
+    for (let i = 0; i < 42; i++) {
+      days.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+   
+    return days;
+  };
+
+  const buildings = [...new Set(rooms.map(r => r.building))];
+ 
+  let filteredRooms = rooms.filter(r => r.building === selectedBuilding);
+ 
+  if (filters.minCapacity > 0) {
+    filteredRooms = filteredRooms.filter(r => r.capacity >= filters.minCapacity);
+  }
+ 
+  if (filters.noiseLevel !== 'all') {
+    filteredRooms = filteredRooms.filter(r => r.noiseLevel === filters.noiseLevel);
+  }
+ 
+  if (filters.amenities.length > 0) {
+    filteredRooms = filteredRooms.filter(r =>
+      r.amenities && filters.amenities.every(amenity => r.amenities.includes(amenity))
+    );
+  }
+ 
+  if (filters.showPublicOnly) {
+    filteredRooms = filteredRooms.filter(r =>
+      r.status === 'inUse' && r.sessionInfo && r.sessionInfo.isPublic
+    );
+  }
+
+  if (filters.availability !== 'all') {
+    filteredRooms = filteredRooms.filter(r => getRoomAvailabilityStatus(r) === filters.availability);
+  }
+ 
+  const scannedRoom = rooms.find(r => r.id === scannedRoomId);
+
+  const stats = {
+    total: rooms.length,
+    open: rooms.filter(r => r.status === 'open').length,
+    inUse: rooms.filter(r => r.status === 'inUse').length
+  };
+
+  if (rooms.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600">Loading rooms...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-red-700 text-white py-6 px-4 shadow-md">
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">CMU Study</h1>
+            <p className="text-red-100 text-sm">Demo application with simulated data. Not connected to real CMU systems.</p>
+          </div>
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 bg-white text-red-700 rounded-md font-medium hover:bg-red-50 transition-colors text-sm"
+          >
+            Reset Data
+          </button>
+        </div>
+      </header>
+
+      {scannedRoom && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 py-4 px-4">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-yellow-800">
+              <span className="font-semibold">QR Code Scanned (demo):</span> You opened the app via {scannedRoom.name}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        {notifications.length > 0 && (
+          <div className="mb-6 space-y-2">
+            {notifications.map(notif => (
+              <div key={notif.id} className="bg-yellow-50 border-l-4 border-yellow-400 p-4 flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <Bell className="text-yellow-600 mt-1" size={20} />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">{notif.message}</p>
+                    <button
+                      onClick={() => extendReservation(notif.roomId)}
+                      className="mt-2 text-sm text-yellow-700 underline hover:text-yellow-900"
+                    >
+                      Extend reservation by 1 hour
+                    </button>
+                  </div>
+                </div>
+                <button onClick={() => dismissNotification(notif.id)} className="text-yellow-600 hover:text-yellow-800">
+                  <X size={18} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="flex gap-6 text-sm">
+            <div>
+              <span className="text-gray-600">Total Rooms:</span>{' '}
+              <span className="font-semibold">{stats.total}</span>
+            </div>
+            <div>
+              <span className="text-gray-600">Open:</span>{' '}
+              <span className="font-semibold text-green-600">{stats.open}</span>
+            </div>
+            <div>
+              <span className="text-gray-600">In Use:</span>{' '}
+              <span className="font-semibold text-red-600">{stats.inUse}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Building
+          </label>
+          <select
+            value={selectedBuilding}
+            onChange={(e) => setSelectedBuilding(e.target.value)}
+            className="w-full px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-medium hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-red-700 focus:border-transparent"
+          >
+            {buildings.sort().map(building => (
+              <option key={building} value={building}>
+                {building}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-5 mb-6">
+          <h2 className="text-lg font-semibold mb-4">Filters</h2>
+         
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Minimum Capacity
+              </label>
+              <select
+                value={filters.minCapacity}
+                onChange={(e) => setFilters({...filters, minCapacity: parseInt(e.target.value)})}
+                className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-700"
+              >
+                <option value="0">Any size</option>
+                {[...Array(20)].map((_, i) => (
+                  <option key={i + 1} value={i + 1}>{i + 1}+ people</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Noise Level
+              </label>
+              <select
+                value={filters.noiseLevel}
+                onChange={(e) => setFilters({...filters, noiseLevel: e.target.value})}
+                className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-700"
+              >
+                <option value="all">All levels</option>
+                <option value="quiet">🔇 Quiet</option>
+                <option value="moderate">🔉 Moderate</option>
+                <option value="collaborative">🔊 Collaborative</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Availability
+              </label>
+              <select
+                value={filters.availability}
+                onChange={(e) => setFilters({...filters, availability: e.target.value})}
+                className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-700"
+              >
+                <option value="all">All rooms</option>
+                <option value="open_now">Currently open</option>
+                <option value="opening_30min">Opening in next 30 min</option>
+                <option value="opening_15min">Opening in next 15 min</option>
+                <option value="reserved">Reserved</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Required Amenities
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {['whiteboard', 'monitor', 'projector', 'tv', 'conference_phone'].map(amenity => (
+                <label key={amenity} className="flex items-center text-sm cursor-pointer p-2 border border-gray-200 rounded hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={filters.amenities.includes(amenity)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFilters({...filters, amenities: [...filters.amenities, amenity]});
+                      } else {
+                        setFilters({...filters, amenities: filters.amenities.filter(a => a !== amenity)});
+                      }
+                    }}
+                    className="mr-3 w-4 h-4"
+                  />
+                  <span>{getAmenityLabel(amenity)}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <label className="flex items-center text-sm">
+              <input
+                type="checkbox"
+                checked={filters.showPublicOnly}
+                onChange={(e) => setFilters({...filters, showPublicOnly: e.target.checked})}
+                className="mr-2"
+              />
+              <span className="font-medium">Show only public study sessions (open to study buddies)</span>
+            </label>
+          </div>
+
+          {(filters.minCapacity > 0 || filters.noiseLevel !== 'all' || filters.amenities.length > 0 || filters.showPublicOnly || filters.availability !== 'all') && (
+            <button
+              onClick={() => setFilters({ minCapacity: 0, noiseLevel: 'all', amenities: [], showPublicOnly: false, availability: 'all' })}
+              className="mt-4 text-sm text-red-700 hover:text-red-800 font-medium"
+            >
+              Clear all filters
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          {filteredRooms.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-500">
+              No rooms match your filters. Try adjusting your criteria.
+            </div>
+          ) : (
+            filteredRooms.map(room => {
+              const isScanned = room.id === scannedRoomId;
+              const noiseLevelInfo = getNoiseLevelLabel(room.noiseLevel);
+             
+              return (
+                <div
+                  key={room.id}
+                  ref={el => roomRefs.current[room.id] = el}
+                  className={`bg-white rounded-lg shadow-sm border p-5 transition-all ${
+                    isScanned ? 'border-yellow-400 border-2 shadow-md' : 'border-gray-200'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-gray-900 mb-1">
+                        {room.name}
+                      </h3>
+                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                        <div className="flex items-center gap-1">
+                          <MapPin size={16} />
+                          <span>{room.building}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Users size={16} />
+                          <span>Capacity: {room.capacity}</span>
+                        </div>
+                      </div>
+                     
+                      <div className="flex items-center gap-2 mb-2">
+                        {getNoiseLevelIcon(room.noiseLevel)}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${noiseLevelInfo.color}`}>
+                          {noiseLevelInfo.text}
+                        </span>
+                      </div>
+                     
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {room.amenities && room.amenities.map(amenity => (
+                          <span key={amenity} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs">
+                            {getAmenityIcon(amenity)}
+                            <span>{getAmenityLabel(amenity)}</span>
+                          </span>
+                        ))}
+                      </div>
+
+                      {room.status === 'inUse' && room.sessionInfo && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            {room.sessionInfo.isPublic ? (
+                              <>
+                                <Unlock size={16} className="text-green-600" />
+                                <span className="text-sm font-semibold text-green-700">Public Session - Open to Study Buddies!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock size={16} className="text-gray-600" />
+                                <span className="text-sm font-semibold text-gray-700">Private Session</span>
+                              </>
+                            )}
+                          </div>
+                          {room.sessionInfo.isPublic && room.sessionInfo.subject && (
+                            <div className="text-sm text-gray-700">
+                              <span className="font-medium">Subject:</span> {room.sessionInfo.subject}
+                            </div>
+                          )}
+                          {room.sessionInfo.isPublic && room.sessionInfo.notes && (
+                            <div className="text-sm text-gray-600 mt-1">
+                              <span className="font-medium">Notes:</span> {room.sessionInfo.notes}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                   
+                    <div className="ml-4">
+                      {room.status === 'open' ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                          Open
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                          In Use
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {room.status === 'inUse' && room.inUseUntil && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+                      <Clock size={16} />
+                      <span>In use until {formatTime(room.inUseUntil)} (simulated)</span>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 flex-wrap">
+                    {room.status === 'open' ? (
+                      <>
+                        <button
+                          onClick={() => handleUseRoom(room.id)}
+                          className="px-4 py-2 bg-red-700 text-white rounded-md font-medium hover:bg-red-800 transition-colors"
+                        >
+                          Use Room
+                        </button>
+                        <button
+                          onClick={() => openReservationModal(room.id)}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        >
+                          <Calendar size={16} />
+                          Reserve
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleReleaseRoom(room.id)}
+                        className="px-4 py-2 bg-gray-700 text-white rounded-md font-medium hover:bg-gray-800 transition-colors"
+                      >
+                        Release Room
+                      </button>
+                    )}
+                   
+                    <button
+                      onClick={() => handleQRSimulation(room.id)}
+                      className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md font-medium hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Open via QR (demo)
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </main>
+
+      <footer className="bg-white border-t border-gray-200 mt-12 py-6 px-4">
+        <div className="max-w-4xl mx-auto text-center text-sm text-gray-600">
+          All data here is simulated. No connection to real CMU systems.
+        </div>
+      </footer>
+
+      {checkInModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">Check into Room</h2>
+           
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Session Type <span className="text-red-600">*</span>
+                </label>
+                <select
+                  value={checkInForm.isPublic ? 'public' : 'private'}
+                  onChange={(e) => setCheckInForm({...checkInForm, isPublic: e.target.value === 'public'})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-700 bg-white"
+                >
+                  <option value="private">🔒 Private - Just me and my group</option>
+                  <option value="public">🔓 Public - Open to study buddies</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {checkInForm.isPublic
+                    ? "Others can see what you're studying and join you"
+                    : "Others won't see what you're studying"}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  What are you studying? {checkInForm.isPublic && <span className="text-red-600">*</span>}
+                  {!checkInForm.isPublic && <span className="text-gray-500 text-xs">(optional for private)</span>}
+                </label>
+                <select
+                  value={checkInForm.subject}
+                  onChange={(e) => setCheckInForm({...checkInForm, subject: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-700 bg-white"
+                >
+                  <option value="">Select a course...</option>
+                  <optgroup label="Computer Science">
+                    <option value="15-112">15-112 Fundamentals of Programming</option>
+                    <option value="15-122">15-122 Principles of Imperative Computation</option>
+                    <option value="15-150">15-150 Principles of Functional Programming</option>
+                    <option value="15-213">15-213 Introduction to Computer Systems</option>
+                    <option value="15-251">15-251 Great Ideas in Theoretical Computer Science</option>
+                    <option value="15-281">15-281 Artificial Intelligence</option>
+                    <option value="15-410">15-410 Operating System Design and Implementation</option>
+                    <option value="15-445">15-445 Database Systems</option>
+                  </optgroup>
+                  <optgroup label="Mathematics">
+                    <option value="21-120">21-120 Differential and Integral Calculus</option>
+                    <option value="21-122">21-122 Integration and Approximation</option>
+                    <option value="21-127">21-127 Concepts of Mathematics</option>
+                    <option value="21-241">21-241 Matrices and Linear Transformations</option>
+                    <option value="21-259">21-259 Calculus in Three Dimensions</option>
+                    <option value="21-325">21-325 Probability</option>
+                    <option value="21-373">21-373 Algebraic Structures</option>
+                  </optgroup>
+                  <optgroup label="Engineering">
+                    <option value="18-100">18-100 Introduction to Electrical and Computer Engineering</option>
+                    <option value="18-213">18-213 Introduction to Computer Systems</option>
+                    <option value="24-101">24-101 Fundamentals of Mechanical Engineering</option>
+                    <option value="27-100">27-100 Engineering the Materials of the Future</option>
+                  </optgroup>
+                  <optgroup label="Science">
+                    <option value="33-104">33-104 Experimental Physics</option>
+                    <option value="33-107">33-107 Physics I</option>
+                    <option value="33-151">33-151 Matter and Interactions I</option>
+                    <option value="09-105">09-105 Introduction to Modern Chemistry I</option>
+                    <option value="03-121">03-121 Modern Biology</option>
+                  </optgroup>
+                  <optgroup label="Business">
+                    <option value="70-122">70-122 Introduction to Accounting</option>
+                    <option value="70-207">70-207 Organization and Management</option>
+                    <option value="70-332">70-332 Marketing Management</option>
+                    <option value="73-100">73-100 Principles of Economics</option>
+                    <option value="73-230">73-230 Intermediate Microeconomics</option>
+                  </optgroup>
+                  <optgroup label="Humanities & Social Sciences">
+                    <option value="76-101">76-101 Interpretation and Argument</option>
+                    <option value="79-104">79-104 Global Histories</option>
+                    <option value="80-100">80-100 Introduction to Philosophy</option>
+                    <option value="85-102">85-102 Introduction to Psychology</option>
+                  </optgroup>
+                  <optgroup label="Other">
+                    <option value="other">Other (specify in notes)</option>
+                  </optgroup>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Additional notes <span className="text-gray-500 text-xs">(optional)</span>
+                </label>
+                <textarea
+                  value={checkInForm.notes}
+                  onChange={(e) => setCheckInForm({...checkInForm, notes: e.target.value})}
+                  placeholder="e.g., Working on homework 5, preparing for midterm, need help with proofs..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-700"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setCheckInModal(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmCheckIn}
+                disabled={checkInForm.isPublic && !checkInForm.subject.trim()}
+                className="flex-1 px-4 py-2 bg-red-700 text-white rounded-md font-medium hover:bg-red-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                Check In
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reservationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 my-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Reserve Room</h2>
+              <button onClick={() => setReservationModal(null)} className="text-gray-500 hover:text-gray-700">
+                <X size={24} />
+              </button>
+            </div>
+           
+            {!timeSlotView ? (
+              <>
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <button
+                      onClick={() => setCalendarView(new Date(calendarView.getFullYear(), calendarView.getMonth() - 1))}
+                      className="p-2 hover:bg-gray-100 rounded"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <h3 className="text-lg font-semibold">
+                      {calendarView.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </h3>
+                    <button
+                      onClick={() => setCalendarView(new Date(calendarView.getFullYear(), calendarView.getMonth() + 1))}
+                      className="p-2 hover:bg-gray-100 rounded"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
+                 
+                  <div className="grid grid-cols-7 gap-1">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="text-center text-sm font-medium text-gray-600 py-2">
+                        {day}
+                      </div>
+                    ))}
+                    {generateCalendarDays().map((date, idx) => {
+                      const isCurrentMonth = date.getMonth() === calendarView.getMonth();
+                      const isToday = date.toDateString() === new Date().toDateString();
+                      const isPast = date < new Date().setHours(0, 0, 0, 0);
+                      const room = rooms.find(r => r.id === reservationModal);
+                      const dayReservations = room ? getDayReservations(room, date) : [];
+                     
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => !isPast && selectDateForReservation(date)}
+                          disabled={isPast}
+                          className={`p-2 text-sm rounded hover:bg-blue-50 ${
+                            !isCurrentMonth ? 'text-gray-400' :
+                            isPast ? 'text-gray-300 cursor-not-allowed' :
+                            isToday ? 'bg-red-100 font-semibold' : ''
+                          } ${dayReservations.length > 0 ? 'border-2 border-blue-300' : ''}`}
+                        >
+                          <div>{date.getDate()}</div>
+                          {dayReservations.length > 0 && (
+                            <div className="text-xs text-blue-600">{dayReservations.length} res.</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setTimeSlotView(false)}
+                  className="mb-4 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <ChevronLeft size={16} /> Back to calendar
+                </button>
+               
+                <h3 className="text-lg font-semibold mb-4">
+                  {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </h3>
+               
+                <div className="mb-4 max-h-32 overflow-y-auto">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Existing reservations:</h4>
+                  {(() => {
+                    const room = rooms.find(r => r.id === reservationModal);
+                    const dayReservations = room ? getDayReservations(room, selectedDate) : [];
+                   
+                    if (dayReservations.length === 0) {
+                      return <p className="text-sm text-gray-500">No reservations for this day</p>;
+                    }
+                   
+                    return dayReservations.map(res => (
+                      <div key={res.id} className="text-sm p-2 bg-gray-50 rounded mb-2">
+                        <div className="font-medium">
+                          {new Date(res.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} -
+                          {' '}{new Date(res.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        </div>
+                        <div className="text-gray-600">
+                          {res.type === 'class' && '📚 Class: '}
+                          {res.type === 'club' && '🎯 Club: '}
+                          {res.type === 'reservation' && '📅 '}
+                          {res.subject || 'Reserved'}
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+               
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Start Time <span className="text-red-600">*</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={reservationForm.startTime}
+                        onChange={(e) => setReservationForm({...reservationForm, startTime: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-700"
+                      />
+                    </div>
+                   
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        End Time <span className="text-red-600">*</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={reservationForm.endTime}
+                        onChange={(e) => setReservationForm({...reservationForm, endTime: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-700"
+                      />
+                    </div>
+                  </div>
+                 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reservation Type <span className="text-red-600">*</span>
+                    </label>
+                    <select
+                      value={reservationForm.type}
+                      onChange={(e) => setReservationForm({...reservationForm, type: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-700"
+                    >
+                      <option value="reservation">📅 Personal Reservation</option>
+                      <option value="class">📚 Class</option>
+                      <option value="club">🎯 Club Meeting</option>
+                    </select>
+                  </div>
+                 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Public or Private? <span className="text-red-600">*</span>
+                    </label>
+                    <select
+                      value={reservationForm.isPublic ? 'public' : 'private'}
+                      onChange={(e) => setReservationForm({...reservationForm, isPublic: e.target.value === 'public'})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-700"
+                    >
+                      <option value="private">🔒 Private</option>
+                      <option value="public">🔓 Public - Open to others</option>
+                    </select>
+                  </div>
+                 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subject/Course {reservationForm.isPublic && <span className="text-red-600">*</span>}
+                    </label>
+                    <input
+                      type="text"
+                      value={reservationForm.subject}
+                      onChange={(e) => setReservationForm({...reservationForm, subject: e.target.value})}
+                      placeholder="e.g., 15-112, Club Name, or Study Topic"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-700"
+                    />
+                  </div>
+                 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Additional Notes <span className="text-gray-500 text-xs">(optional)</span>
+                    </label>
+                    <textarea
+                      value={reservationForm.notes}
+                      onChange={(e) => setReservationForm({...reservationForm, notes: e.target.value})}
+                      placeholder="Any additional details..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-700"
+                    />
+                  </div>
+                </div>
+               
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setTimeSlotView(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmReservation}
+                    disabled={!reservationForm.startTime || !reservationForm.endTime || (reservationForm.isPublic && !reservationForm.subject)}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    Confirm Reservation
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
